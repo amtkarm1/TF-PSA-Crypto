@@ -9072,7 +9072,7 @@ psa_status_t psa_pake_setup(
     }
 
     if (PSA_ALG_IS_PAKE(cipher_suite->algorithm) == 0 ||
-        PSA_ALG_IS_HASH(cipher_suite->hash) == 0) {
+        PSA_ALG_IS_HASH(psa_pake_cs_get_hash(cipher_suite)) == 0) {
         status = PSA_ERROR_INVALID_ARGUMENT;
         goto exit;
     }
@@ -9085,7 +9085,7 @@ psa_status_t psa_pake_setup(
     operation->data.inputs.cipher_suite = *cipher_suite;
 
 #if defined(PSA_WANT_ALG_JPAKE)
-    if (operation->alg == PSA_ALG_JPAKE) {
+    if (PSA_ALG_IS_JPAKE(operation->alg)) {
         psa_jpake_computation_stage_t *computation_stage =
             &operation->computation_stage.jpake;
 
@@ -9252,19 +9252,18 @@ psa_status_t psa_pake_set_role(
         goto exit;
     }
 
-    switch (operation->alg) {
 #if defined(PSA_WANT_ALG_JPAKE)
-        case PSA_ALG_JPAKE:
-            if (role == PSA_PAKE_ROLE_NONE) {
-                return PSA_SUCCESS;
-            }
-            status = PSA_ERROR_INVALID_ARGUMENT;
-            break;
+    if (PSA_ALG_IS_JPAKE(operation->alg)) {
+        if (role == PSA_PAKE_ROLE_NONE) {
+            return PSA_SUCCESS;
+        }
+        status = PSA_ERROR_INVALID_ARGUMENT;
+    } else
 #endif
-        default:
-            (void) role;
-            status = PSA_ERROR_NOT_SUPPORTED;
-            goto exit;
+    {
+        (void) role;
+        status = PSA_ERROR_NOT_SUPPORTED;
+        goto exit;
     }
 exit:
     psa_pake_abort(operation);
@@ -9312,7 +9311,7 @@ static psa_status_t psa_pake_complete_inputs(
         return PSA_ERROR_BAD_STATE;
     }
 
-    if (operation->alg == PSA_ALG_JPAKE) {
+    if (PSA_ALG_IS_JPAKE(operation->alg)) {
         if (inputs.user_len == 0 || inputs.peer_len == 0) {
             return PSA_ERROR_BAD_STATE;
         }
@@ -9332,7 +9331,7 @@ static psa_status_t psa_pake_complete_inputs(
 
     if (status == PSA_SUCCESS) {
 #if defined(PSA_WANT_ALG_JPAKE)
-        if (operation->alg == PSA_ALG_JPAKE) {
+        if (PSA_ALG_IS_JPAKE(operation->alg)) {
             operation->stage = PSA_PAKE_OPERATION_STAGE_COMPUTATION;
         } else
 #endif /* PSA_WANT_ALG_JPAKE */
@@ -9449,18 +9448,17 @@ psa_status_t psa_pake_output(
         goto exit;
     }
 
-    switch (operation->alg) {
 #if defined(PSA_WANT_ALG_JPAKE)
-        case PSA_ALG_JPAKE:
-            status = psa_jpake_prologue(operation, step, PSA_JPAKE_OUTPUT);
-            if (status != PSA_SUCCESS) {
-                goto exit;
-            }
-            driver_step = convert_jpake_computation_stage_to_driver_step(
-                &operation->computation_stage.jpake);
-            break;
+    if (PSA_ALG_IS_JPAKE(operation->alg)) {
+        status = psa_jpake_prologue(operation, step, PSA_JPAKE_OUTPUT);
+        if (status != PSA_SUCCESS) {
+            goto exit;
+        }
+        driver_step = convert_jpake_computation_stage_to_driver_step(
+            &operation->computation_stage.jpake);
+    } else
 #endif /* PSA_WANT_ALG_JPAKE */
-        default:
+    {
             (void) step;
             status = PSA_ERROR_NOT_SUPPORTED;
             goto exit;
@@ -9475,18 +9473,17 @@ psa_status_t psa_pake_output(
         goto exit;
     }
 
-    switch (operation->alg) {
 #if defined(PSA_WANT_ALG_JPAKE)
-        case PSA_ALG_JPAKE:
-            status = psa_jpake_epilogue(operation, PSA_JPAKE_OUTPUT);
-            if (status != PSA_SUCCESS) {
-                goto exit;
-            }
-            break;
-#endif /* PSA_WANT_ALG_JPAKE */
-        default:
-            status = PSA_ERROR_NOT_SUPPORTED;
+    if (PSA_ALG_IS_JPAKE(operation->alg)) {
+        status = psa_jpake_epilogue(operation, PSA_JPAKE_OUTPUT);
+        if (status != PSA_SUCCESS) {
             goto exit;
+        }
+    } else
+#endif /* PSA_WANT_ALG_JPAKE */
+    {
+        status = PSA_ERROR_NOT_SUPPORTED;
+        goto exit;
     }
 
 exit:
@@ -9527,18 +9524,17 @@ psa_status_t psa_pake_input(
         goto exit;
     }
 
-    switch (operation->alg) {
 #if defined(PSA_WANT_ALG_JPAKE)
-        case PSA_ALG_JPAKE:
-            status = psa_jpake_prologue(operation, step, PSA_JPAKE_INPUT);
-            if (status != PSA_SUCCESS) {
-                goto exit;
-            }
-            driver_step = convert_jpake_computation_stage_to_driver_step(
-                &operation->computation_stage.jpake);
-            break;
+    if (PSA_ALG_IS_JPAKE(operation->alg)) {
+        status = psa_jpake_prologue(operation, step, PSA_JPAKE_INPUT);
+        if (status != PSA_SUCCESS) {
+            goto exit;
+        }
+        driver_step = convert_jpake_computation_stage_to_driver_step(
+            &operation->computation_stage.jpake);
+    } else
 #endif /* PSA_WANT_ALG_JPAKE */
-        default:
+    {
             (void) step;
             status = PSA_ERROR_NOT_SUPPORTED;
             goto exit;
@@ -9552,16 +9548,15 @@ psa_status_t psa_pake_input(
         goto exit;
     }
 
-    switch (operation->alg) {
 #if defined(PSA_WANT_ALG_JPAKE)
-        case PSA_ALG_JPAKE:
-            status = psa_jpake_epilogue(operation, PSA_JPAKE_INPUT);
-            if (status != PSA_SUCCESS) {
-                goto exit;
-            }
-            break;
+    if (PSA_ALG_IS_JPAKE(operation->alg)) {
+        status = psa_jpake_epilogue(operation, PSA_JPAKE_INPUT);
+        if (status != PSA_SUCCESS) {
+            goto exit;
+        }
+    } else
 #endif /* PSA_WANT_ALG_JPAKE */
-        default:
+    {
             status = PSA_ERROR_NOT_SUPPORTED;
             goto exit;
     }
@@ -9589,7 +9584,7 @@ psa_status_t psa_pake_get_implicit_key(
     }
 
 #if defined(PSA_WANT_ALG_JPAKE)
-    if (operation->alg == PSA_ALG_JPAKE) {
+    if (PSA_ALG_IS_JPAKE(operation->alg)) {
         psa_jpake_computation_stage_t *computation_stage =
             &operation->computation_stage.jpake;
         if (computation_stage->round != PSA_JPAKE_FINISHED) {
